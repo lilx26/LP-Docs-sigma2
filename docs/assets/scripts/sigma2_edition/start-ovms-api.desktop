@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Start OVMS API
+Comment=Start the local OVMS API
+# cd without an argument uses the current user's HOME.
+Exec=sh -c "cd && exec ./start-ovms-api.sh"
+Icon=utilities-terminal
+Type=Application
+Terminal=true

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Stop OVMS API
+Comment=Stop the OVMS instance started by Start OVMS API
+# cd without an argument uses the current user's HOME.
+Exec=sh -c "cd && exec ./stop-ovms-api.sh"
+Icon=utilities-terminal
+Type=Application
+Terminal=true

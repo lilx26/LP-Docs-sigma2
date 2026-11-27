@@ -51,9 +51,14 @@ The Panther Lake platform requires a recent Linux kernel:
     - **Upgrade the Kernel**: If issues persist, try upgrading to a newer Linux kernel, which often includes better support for newer hardware.
     - **Install Proprietary Drivers**: Some components may require proprietary drivers. Check your distribution's "Additional Drivers" utility.
 
-!!! note
-    The following driver installation procedures apply to both Ubuntu 24.04 and 26.04. Select the correct NPU driver package for your operating system.
+Intel provides official installation guides and driver releases, which may be updated over time. Refer to the official documentation for the latest packages and release information. The following sections provide Sigma 2-specific installation instructions and verification steps.
 
+!!! note "Tested Configuration"
+    These driver steps were tested on Sigma 2 with Ubuntu 26.04.1 and kernel `7.0.0-44-generic`. The Ubuntu 24.04 steps use Intel's corresponding official packages and commands, but were not independently verified in this Sigma 2 test.
+
+    To check your system versions, use `cat /etc/os-release` and `uname -r`.
+
+![ubuntu_version_kernel](../../assets/images/Sigma2/ubuntu_version_kernel.webp){width="600"}
 
 ## Intel GPU Compute Driver
 
@@ -61,345 +66,208 @@ Linux's default graphics drivers are only responsible for display output and do 
 
 If you plan to run large language models locally (such as OpenVINO, llama.cpp) or perform other general-purpose GPU computing (such as PyTorch XPU or AI video processing), you need to install the official Intel compute runtime.
 
-- [Click here for installation guide](https://dgpu-docs.intel.com/installation-guides/index.html)
+Follow the Sigma 2 steps below, or check Intel's [official guide](https://dgpu-docs.intel.com/installation-guides/index.html) for the latest instructions.
+
+1. **Add Intel Graphics PPA**
+
+    Add the [Intel Graphics PPA](https://dgpu-docs.intel.com/installation-guides/installing-packages-from-the-intel-ppa.html):
+
+    ```bash
+    sudo apt update
+    sudo apt install -y software-properties-common
+    sudo add-apt-repository -y ppa:kobuk-team/intel-graphics
+    ```
+
+    ![gpu_ppa_repository](../../assets/images/Sigma2/gpu_ppa_repository.webp){width="600"}
+
+2. **Install GPU Compute Runtime**
+
+    ```bash
+    sudo apt-get install -y \
+        libze-intel-gpu1 \
+        libze1 \
+        intel-metrics-discovery \
+        intel-opencl-icd \
+        clinfo \
+        intel-gsc
+    ```
+
+    | Package | Purpose |
+    | :--- | :--- |
+    | `libze-intel-gpu1`, `libze1` | Level Zero implementation and loader |
+    | `intel-opencl-icd`, `clinfo` | OpenCL runtime and device inspection |
+    | `intel-metrics-discovery` | GPU performance metrics |
+    | `intel-gsc` | Graphics Security Controller support |
+
+3. **Configure User Permissions**
+
+    Add your user to the `render` group:
+
+    ```bash
+    sudo gpasswd -a "$USER" render
+    ```
+
+    Log out and log in again, or reboot, to apply the change.
+
+4. **Verify OpenCL Device Detection**
+
+    ```bash
+    clinfo -l
+    id -nG
+    ```
+
+    `clinfo -l` should list `Intel(R) Arc(TM) B390 GPU`, confirming that OpenCL detects the GPU. `id -nG` should include `render`, confirming that group membership is active in the current session:
+
+    ![gpu_opencl_verification](../../assets/images/Sigma2/gpu_opencl_verification.webp){width="600"}
+
+5. **Optional GPU Components**
+
+    Install these only when your application needs them.
+
+    **Media Acceleration** - hardware video decoding and encoding:
+
+    ```bash
+    sudo apt-get install -y \
+        intel-media-va-driver-non-free \
+        libmfx-gen1.2 \
+        libvpl2 \
+        libvpl-tools \
+        libva-glx2 \
+        va-driver-all \
+        vainfo
+    ```
+
+    **AoT Compilation** - development libraries and GPU kernel compilation:
+
+    ```bash
+    sudo apt-get install -y libze-dev intel-ocloc
+    ```
+
+    **Ray Tracing** - hardware ray tracing support:
+
+    ```bash
+    sudo apt-get install -y libze-intel-gpu-raytracing
+    ```
 
 ## Intel NPU Drivers
 
-- [Click here for installation guide](https://github.com/intel/linux-npu-driver/releases)
-
-
-## Intel GPU Compute Driver
-
-Linux's default graphics driver provides display output but does not include all the compute libraries required for GPU acceleration.
-
-To run local AI models with OpenVINO, llama.cpp, or other GPU-accelerated applications, install Intel's GPU Compute Runtime.
-
-### Step 1. Add the Intel Graphics PPA
-
-Refresh the local package index and install the package for managing software repositories:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y software-properties-common
-```
-
-Add the Intel Graphics PPA:
-
-```bash
-sudo add-apt-repository -y ppa:kobuk-team/intel-graphics
-```
-
-Refresh the package index:
-
-```bash
-sudo apt-get update
-```
-
-### Step 2. Install GPU Compute Runtime
-
-Install the required compute packages:
-
-```bash
-sudo apt-get install -y \
-    libze-intel-gpu1 \
-    libze1 \
-    intel-metrics-discovery \
-    intel-opencl-icd \
-    clinfo \
-    intel-gsc
-```
-
-These packages provide the main GPU compute components:
-
-| Package | Description |
-|---|---|
-| `libze-intel-gpu1` | Intel GPU Level Zero implementation |
-| `libze1` | Level Zero Loader |
-| `intel-metrics-discovery` | GPU performance metrics support |
-| `intel-opencl-icd` | Intel OpenCL runtime |
-| `clinfo` | OpenCL device inspection utility |
-| `intel-gsc` | Intel Graphics Security Controller support |
-
-### Step 3. Configure User Permissions
-
-GPU compute applications need access to the GPU render device.
-
-Check the device nodes:
-
-```bash
-ls -l /dev/dri/
-```
-
-Check the current user's groups:
-
-```bash
-id -nG
-```
-
-If the `render` group is missing, add the current user:
-
-```bash
-sudo gpasswd -a "$USER" render
-```
-
-Log out and log in again, or reboot the system, to apply the group change.
-
-### Step 4. Verify GPU Installation
-
-Check the OpenCL platform and GPU device:
-
-```bash
-clinfo -l
-```
-
-For more detailed device information:
-
-```bash
-clinfo | grep "Device Name"
-```
-
-If the installation is successful, Intel graphics devices should be listed.
-
-On the tested Sigma 2 configuration, the output included:
-
-```text
-Platform #0: Intel(R) OpenCL Graphics (integrated)
- `-- Device #0: Intel(R) Arc(TM) B390 GPU
-```
-
-<!-- Screenshot: clinfo -l output showing Intel Arc B390 -->
-
-If no Intel GPU is listed, check the render device permissions:
-
-```bash
-ls -l /dev/dri/renderD*
-id -nG
-```
-
-Make sure the current user belongs to the `render` group.
-
-### Optional GPU Components
-
-The following packages are optional and should only be installed when the corresponding functionality is required.
-
-**Media Acceleration**
-
-For hardware-accelerated video decoding and encoding:
-
-```bash
-sudo apt-get install -y \
-    intel-media-va-driver-non-free \
-    libmfx-gen1.2 \
-    libvpl2 \
-    libvpl-tools \
-    libva-glx2 \
-    va-driver-all \
-    vainfo
-```
-
-**Ahead-of-Time (AoT) Compilation**
-
-If you need to build SYCL or PyTorch applications from source, or precompile GPU kernels for specific devices, install:
-
-```bash
-sudo apt-get install -y libze-dev intel-ocloc
-```
-
-**Hardware Ray Tracing**
-
-If your application requires hardware ray tracing support, install:
-
-```bash
-sudo apt-get install -y libze-intel-gpu-raytracing
-```
-
-## Intel NPU Drivers
-
-The Intel NPU requires a separate driver package in addition to the GPU compute runtime.
-
-This guide uses Intel Linux NPU Driver v1.39.1, which provides separate packages for Ubuntu 24.04 and Ubuntu 26.04.
-
-Official release:
-
-https://github.com/intel/linux-npu-driver/releases/tag/v1.39.1
-
-### Step 1. Check Existing NPU Driver Packages
-
-Check whether an older NPU driver is already installed:
-
-```bash
-dpkg -l | grep -E \
-'intel-driver-compiler-npu|intel-fw-npu|intel-level-zero-npu'
-```
-
-If you are replacing an older NPU driver version, remove the existing NPU packages first:
-
-```bash
-sudo dpkg --purge --force-remove-reinstreq \
-    intel-driver-compiler-npu \
-    intel-fw-npu \
-    intel-level-zero-npu \
-    intel-level-zero-npu-dbgsym
-```
-
-Skip this removal step if no previous NPU driver is installed.
-
-### Step 2. Download the NPU Driver Package
-
-Create a working directory:
-
-```bash
-mkdir -p ~/npu-driver-v1.39.1
-cd ~/npu-driver-v1.39.1
-```
-
-Select the package corresponding to your Ubuntu version.
-
-=== "Ubuntu 24.04"
-
-    ```bash
-    wget https://github.com/intel/linux-npu-driver/releases/download/v1.39.1/linux-npu-driver-v1.39.1.20261119-44517102376-ubuntu2404.tar.gz
-
-    tar -xf linux-npu-driver-v1.39.1.20261119-44517102376-ubuntu2404.tar.gz
-    ```
-
-=== "Ubuntu 26.04"
-
-    ```bash
-    wget https://github.com/intel/linux-npu-driver/releases/download/v1.39.1/linux-npu-driver-v1.39.1.20261119-44517102376-ubuntu2604.tar.gz
-
-    tar -xf linux-npu-driver-v1.39.1.20261119-44517102376-ubuntu2604.tar.gz
-    ```
-
-### Step 3. Install Dependencies
-
-Install `libtbb12`, which is required by `intel-driver-compiler-npu`:
-
-```bash
-sudo apt update
-sudo apt install -y libtbb12
-```
-
-### Step 4. Install the NPU Driver Packages
-
-From the directory containing the extracted `.deb` files, run:
-
-```bash
-sudo dpkg -i ./*.deb
-```
-
-### Step 5. Install the Matching Level Zero Loader
-
-The NPU driver requires a compatible Level Zero Loader.
-
-Download the `libze1` package matching your Ubuntu version.
-
-=== "Ubuntu 24.04"
-
-    ```bash
-    wget https://snapshot.ppa.launchpadcontent.net/kobuk-team/intel-graphics/ubuntu/20261110T100000Z/pool/main/l/level-zero-loader/libze1_1.34.0-1~24.04~ppa1_amd64.deb
-
-    sudo dpkg -i ./libze1_1.34.0-1~24.04~ppa1_amd64.deb
-    ```
-
-=== "Ubuntu 26.04"
-
-    ```bash
-    wget https://snapshot.ppa.launchpadcontent.net/kobuk-team/intel-graphics/ubuntu/20261110T100000Z/pool/main/l/level-zero-loader/libze1_1.34.0-1~26.04~ppa1_amd64.deb
-
-    sudo dpkg -i ./libze1_1.34.0-1~26.04~ppa1_amd64.deb
-    ```
+See Intel's [official NPU driver releases](https://github.com/intel/linux-npu-driver/releases) for the latest packages. The following steps use [Intel NPU Driver v1.39.1](https://github.com/intel/linux-npu-driver/releases/tag/v1.39.1) and Level Zero Loader **1.34.0**.
 
 !!! note
-    Use the Level Zero Loader package matching your Ubuntu version. Do not mix the Ubuntu 24.04 and 26.04 packages.
+    If you skipped the GPU setup, run `sudo apt update` and `sudo gpasswd -a "$USER" render` before continuing.
 
-### Step 6. Configure User Permissions
+1. **Check Existing Driver**
 
-Add the current user to the `render` group:
+    ```bash
+    dpkg -l | grep -E \
+    'intel-driver-compiler-npu|intel-fw-npu|intel-level-zero-npu'
+    ```
 
-```bash
-sudo gpasswd -a "$USER" render
-```
+    If there is no output, continue to the download step. Remove the packages below only when replacing an older NPU driver:
 
-Check the group membership:
+    ```bash
+    sudo dpkg --purge --force-remove-reinstreq \
+        intel-driver-compiler-npu \
+        intel-fw-npu \
+        intel-level-zero-npu \
+        intel-level-zero-npu-dbgsym
+    ```
 
-```bash
-id -nG
-```
+2. **Download Driver Package**
 
-The output should include `render`.
+    ```bash
+    mkdir -p ~/npu-driver-v1.39.1
+    cd ~/npu-driver-v1.39.1
+    ```
 
-### Step 7. Reboot the System
+    Select your Ubuntu version:
 
-Reboot to apply the driver and permission changes:
+    === "Ubuntu 24.04"
 
-```bash
-sudo reboot
-```
+        ```bash
+        wget https://github.com/intel/linux-npu-driver/releases/download/v1.39.1/linux-npu-driver-v1.39.1.20261119-44517102376-ubuntu2404.tar.gz
+        tar -xf linux-npu-driver-v1.39.1.20261119-44517102376-ubuntu2404.tar.gz
+        ```
 
-### Step 8. Verify NPU Installation
+    === "Ubuntu 26.04"
 
-After reboot, check whether the NPU device node exists:
+        ```bash
+        wget https://github.com/intel/linux-npu-driver/releases/download/v1.39.1/linux-npu-driver-v1.39.1.20261119-44517102376-ubuntu2604.tar.gz
+        tar -xf linux-npu-driver-v1.39.1.20261119-44517102376-ubuntu2604.tar.gz
+        ```
 
-```bash
-ls -l /dev/accel/accel0
-```
+3. **Install NPU Driver**
 
-If the driver is initialized successfully, the device node should be present:
+    Install the dependency, then run the package installation from the directory containing the extracted `.deb` files:
 
-```text
-/dev/accel/accel0
-```
+    ```bash
+    sudo apt install -y libtbb12
+    sudo dpkg -i ./*.deb
+    ```
 
-Check the NPU kernel driver messages:
+4. **Install Matching Level Zero Loader**
 
-```bash
-sudo dmesg | grep -iE 'intel_vpu|NPU50xx'
-```
+    Use the package matching your Ubuntu version:
 
-On the tested Sigma 2 configuration, the log showed:
+    === "Ubuntu 24.04"
 
-```text
-intel_vpu 0000:00:0b.0: [drm] Firmware:
-intel/vpu/vpu_50xx_v1.bin
+        ```bash
+        wget https://snapshot.ppa.launchpadcontent.net/kobuk-team/intel-graphics/ubuntu/20261110T100000Z/pool/main/l/level-zero-loader/libze1_1.34.0-1~24.04~ppa1_amd64.deb
+        sudo dpkg -i ./libze1_1.34.0-1~24.04~ppa1_amd64.deb
+        ```
 
-[drm] Firmware version:
-Oct 28 2026*NPU50xx*
+    === "Ubuntu 26.04"
 
-[drm] Scheduler mode: HW
+        ```bash
+        wget https://snapshot.ppa.launchpadcontent.net/kobuk-team/intel-graphics/ubuntu/20261110T100000Z/pool/main/l/level-zero-loader/libze1_1.34.0-1~26.04~ppa1_amd64.deb
+        sudo dpkg -i ./libze1_1.34.0-1~26.04~ppa1_amd64.deb
+        ```
 
-[drm] Initialized intel_vpu 1.0.0
-```
+5. **Configure Permissions and Reboot**
 
-<!-- Screenshot: NPU firmware loading and intel_vpu initialization in dmesg -->
+    Reboot to apply the driver and permission changes:
 
-Check the installed driver versions:
+    ```bash
+    sudo reboot
+    ```
 
-```bash
-dpkg-query -W -f='${Package}\t${Version}\n' \
-    intel-driver-compiler-npu \
-    intel-fw-npu \
-    intel-level-zero-npu \
-    libze1
-```
+6. **Verify NPU Initialization**
 
-The tested configuration reported:
+    After reboot, check that the NPU device node exists:
 
-| Component | Installed Version |
-|---|---|
-| Intel NPU Driver | 1.39.1 |
-| NPU Firmware | October 28, 2026 |
-| Level Zero | 1.34.0 |
+    ```bash
+    ls /dev/accel/accel0
+    ```
 
-If `/dev/accel/accel0` is missing, check the kernel version, driver package installation, user permissions, and NPU initialization messages.
+    The output should be `/dev/accel/accel0`, confirming that the NPU device node is present:
 
-!!! note
-    The Intel v1.39.1 release lists Panther Lake verification on Ubuntu 24.04 and 26.04 with kernel 7.0.0-38-generic. The Sigma 2 test in this guide used Ubuntu 26.04.1 with kernel 7.0.0-44-generic and successfully initialized the NPU driver.
+    ![npu_device_node](../../assets/images/Sigma2/npu_device_node.webp){width="600"}
 
-## References
+    Check the installed versions:
 
-- Intel Graphics PPA Installation Guide: https://dgpu-docs.intel.com/installation-guides/installing-packages-from-the-intel-ppa.html
-- Intel Linux NPU Driver Releases: https://github.com/intel/linux-npu-driver/releases
+    ```bash
+    dpkg-query -W -f='${Package}\t${Version}\n' \
+        intel-driver-compiler-npu \
+        intel-fw-npu \
+        intel-level-zero-npu \
+        libze1
+    ```
+
+    The three NPU packages should show version `1.39.1`, and `libze1` should show `1.34.0`. Build and Ubuntu release suffixes may differ:
+
+    ![npu_package_versions](../../assets/images/Sigma2/npu_package_versions.webp){width="600"}
+
+    Check driver initialization:
+
+    ```bash
+    sudo dmesg | grep -iE 'intel_vpu|NPU50xx'
+    ```
+
+    The log should show a `Firmware:` entry and `Initialized intel_vpu`, confirming driver initialization. The tested firmware date is `Oct 28 2026`:
+
+    ![npu_initialization](../../assets/images/Sigma2/npu_initialization.webp){width="600"}
+
+    If the device node is missing, check the kernel version, installed packages, and `intel_vpu` messages.
 
 ------
 

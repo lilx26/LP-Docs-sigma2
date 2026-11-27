@@ -45,6 +45,8 @@ This option starts both the OVMS inference service and the OpenClaw AI agent, th
 
 ## Start the OVMS API Only
 
+If you have reinstalled Ubuntu, see [Local OVMS Deployment](local_ai_ovms.md) to set up the API and desktop shortcuts again.
+
 If you want to connect your own AI agent or application to the local model, double-click the **🔮 Start OVMS API** icon. This starts only the OVMS inference service, which exposes an OpenAI-compatible API:
 
 ![start_ovms_api_terminal](../../assets/images/Sigma2/start_ovms_api_terminal.webp)
