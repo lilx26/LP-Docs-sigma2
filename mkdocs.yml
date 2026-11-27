@@ -269,6 +269,7 @@ nav:
       - Local AI Quick Start:
         - Pre-installed AI: content/sigma2_edition/local_ai_getting_started.md
         - Other AI Agents: content/sigma2_edition/local_ai_agents.md
+        - Local OVMS Deployment: content/sigma2_edition/local_ai_ovms.md
       - Power Options: content/sigma2_edition/powering.md
       - Display Connections: content/sigma2_edition/touch_and_display.md
       - Multiple OS Support:
